@@ -457,41 +457,12 @@
         // Inizializza la sincronizzazione
         syncWithMainBrowser();
 
-        // Aggiungi il tuo token personale GitHub
-        const GITHUB_TOKEN = 'YOUR_GITHUB_TOKEN';
-        const GITHUB_REPO = 'YOUR_USERNAME/YOUR_REPO'; // Formato: username/repository
-        const DATA_FILE = 'data/reminders.json';
-        const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_FILE}`;
-
-        // Funzione per ottenere l'autenticazione base64
-        function getAuthHeader() {
-            return {
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`
-                }
-            };
-        }
-
-        // Initialize Firebase auth
-        firebase.auth().signInAnonymously().catch(function(error) {
-            console.error('Errore durante l'autenticazione anonima:', error);
-        });
-
-        // Listen for auth state changes
-        firebase.auth().onAuthStateChanged(function(user) {
-            if (user) {
-                userId = user.uid;
-                loadReminders();
-            }
-        });
-
-        async function loadReminders() {
+        // Funzione per caricare i dati
+        function loadReminders() {
             try {
-                const response = await fetch(API_URL, getAuthHeader());
-                if (response.ok) {
-                    const data = await response.json();
-                    const content = JSON.parse(atob(data.content));
-                    reminders = content.reminders || {};
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                if (savedData) {
+                    reminders = JSON.parse(savedData);
                     updateStorageStatus('💾 Dati caricati con successo!', 'success');
                 } else {
                     reminders = {};
@@ -502,10 +473,10 @@
                 reminders = {};
                 updateStorageStatus('⚠️ Errore nel caricamento - inizializzato nuovo calendario', 'warning');
             }
-            generateCalendar();
         }
 
-        async function saveReminders() {
+        // Funzione per salvare i dati
+        function saveReminders() {
             try {
                 // Salva i dati nel localStorage
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
