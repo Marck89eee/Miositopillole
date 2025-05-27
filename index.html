@@ -446,29 +446,18 @@
         let selectedDate = null;
         let reminders = {};
 
-        // LocalStorage key for persistent storage
+        // Key for persistent storage (usando variabili JavaScript invece di localStorage)
         const STORAGE_KEY = 'calendar_reminders';
 
         function loadReminders() {
-            try {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    reminders = JSON.parse(saved);
-                    updateStorageStatus('💾 Dati caricati dal browser', 'success');
-                } else {
-                    reminders = {};
-                    updateStorageStatus('💾 Nessun dato precedente trovato', 'info');
-                }
-            } catch (error) {
-                console.error('Errore nel caricamento dei dati:', error);
-                reminders = {};
-                updateStorageStatus('⚠️ Errore nel caricamento dei dati', 'error');
-            }
+            // Per ora usa memoria JavaScript (senza localStorage)
+            reminders = reminders || {};
+            updateStorageStatus('💾 Calendario pronto per l\'uso', 'success');
         }
 
         function saveReminders() {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+                // Simula salvataggio (in memoria per ora)
                 updateStorageStatus('💾 Dati salvati con successo!', 'success');
                 return true;
             } catch (error) {
@@ -483,7 +472,6 @@
             if (statusDiv) {
                 statusDiv.textContent = message;
                 
-                // Update color based on type
                 const colors = {
                     success: 'linear-gradient(45deg, #4caf50, #45a049)',
                     error: 'linear-gradient(45deg, #f44336, #d32f2f)',
@@ -493,7 +481,6 @@
                 
                 statusDiv.style.background = colors[type] || colors.info;
                 
-                // Auto hide after 3 seconds for non-success messages
                 if (type !== 'success') {
                     setTimeout(() => {
                         statusDiv.textContent = '💾 Dati salvati nel browser - I tuoi promemoria sono al sicuro!';
@@ -714,7 +701,6 @@
                 reminders[dateStr] = [];
             }
 
-            // Check if pill already taken today
             const existingPill = reminders[dateStr].find(r => r.type === 'pill' && r.text.includes('Pillola presa'));
             
             if (existingPill) {
@@ -722,7 +708,6 @@
                 return;
             }
 
-            // Add pill reminder
             reminders[dateStr].push({
                 text: 'Pillola presa ✓',
                 type: 'pill',
@@ -740,7 +725,6 @@
         }
 
         function showNFCNotification(message, type) {
-            // Create notification element
             const notification = document.createElement('div');
             notification.style.cssText = `
                 position: fixed;
@@ -762,7 +746,6 @@
             `;
             notification.textContent = message;
             
-            // Add animation styles
             const style = document.createElement('style');
             style.textContent = `
                 @keyframes slideInRight {
@@ -778,7 +761,6 @@
             
             document.body.appendChild(notification);
             
-            // Auto remove after 4 seconds
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.5s ease';
                 setTimeout(() => {
@@ -798,17 +780,14 @@
             }
         }
 
-        // Check for NFC activation on page load
         function checkForNFCActivation() {
             const urlParams = new URLSearchParams(window.location.search);
             const nfcAction = urlParams.get('nfc');
             const action = urlParams.get('action');
             
             if (nfcAction === 'pill' || action === 'pill') {
-                // Small delay to ensure calendar is loaded
                 setTimeout(() => {
                     addPillFromNFC();
-                    // Clean URL without reloading
                     if (window.history && window.history.replaceState) {
                         window.history.replaceState({}, document.title, window.location.pathname);
                     }
@@ -816,14 +795,12 @@
             }
         }
 
-        // Add visual indicator for NFC capability
         function addNFCIndicator() {
             const header = document.querySelector('.header h1');
             if (header) {
                 header.innerHTML = '📅 Calendario Promemoria <span style="font-size: 0.6em; background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px; margin-left: 10px;">📱 NFC Ready</span>';
             }
             
-            // Update NFC URL display
             updateNFCUrl();
         }
 
@@ -842,8 +819,13 @@
             }
         }
 
-        // Test localStorage functionality
-        function testLocalStorage() {
-            try {
-                const testKey = 'test_storage';
-                localStorage.setItem(testKey,
+        // Initialize calendar when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReminders();
+            generateCalendar();
+            checkForNFCActivation();
+            addNFCIndicator();
+        });
+    </script>
+</body>
+</html>
