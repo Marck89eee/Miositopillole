@@ -441,6 +441,11 @@
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.x.x/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="sync.js"></script>
     <script>
         let currentDate = new Date();
         let selectedDate = null;
@@ -449,11 +454,44 @@
         // Key for persistent storage
         const STORAGE_KEY = 'calendar_reminders';
 
-        function loadReminders() {
+        // Inizializza la sincronizzazione
+        syncWithMainBrowser();
+
+        // Aggiungi il tuo token personale GitHub
+        const GITHUB_TOKEN = 'YOUR_GITHUB_TOKEN';
+        const GITHUB_REPO = 'YOUR_USERNAME/YOUR_REPO'; // Formato: username/repository
+        const DATA_FILE = 'data/reminders.json';
+        const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_FILE}`;
+
+        // Funzione per ottenere l'autenticazione base64
+        function getAuthHeader() {
+            return {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`
+                }
+            };
+        }
+
+        // Initialize Firebase auth
+        firebase.auth().signInAnonymously().catch(function(error) {
+            console.error('Errore durante l'autenticazione anonima:', error);
+        });
+
+        // Listen for auth state changes
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (user) {
+                userId = user.uid;
+                loadReminders();
+            }
+        });
+
+        async function loadReminders() {
             try {
-                const savedData = localStorage.getItem(STORAGE_KEY);
-                if (savedData) {
-                    reminders = JSON.parse(savedData);
+                const response = await fetch(API_URL, getAuthHeader());
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = JSON.parse(atob(data.content));
+                    reminders = content.reminders || {};
                     updateStorageStatus('💾 Dati caricati con successo!', 'success');
                 } else {
                     reminders = {};
@@ -464,11 +502,22 @@
                 reminders = {};
                 updateStorageStatus('⚠️ Errore nel caricamento - inizializzato nuovo calendario', 'warning');
             }
+            generateCalendar();
         }
 
-        function saveReminders() {
+        async function saveReminders() {
             try {
+                // Salva i dati nel localStorage
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+                
+                // Se siamo il browser principale, aggiorna l'orario di ultima sincronizzazione
+                const browserId = localStorage.getItem('browserId');
+                const mainBrowserId = localStorage.getItem('mainBrowserId');
+                
+                if (browserId === mainBrowserId) {
+                    localStorage.setItem('mainBrowserLastSync', new Date().toISOString());
+                }
+                
                 updateStorageStatus('💾 Dati salvati con successo!', 'success');
                 return true;
             } catch (error) {
@@ -501,341 +550,15 @@
             }
         }
 
-        function formatDate(date) {
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        }
-
-        function generateCalendar() {
-            const calendar = document.getElementById('calendar');
-            const monthYear = document.getElementById('currentMonth');
-            
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            
-            monthYear.textContent = new Intl.DateTimeFormat('it-IT', { 
-                month: 'long', 
-                year: 'numeric' 
-            }).format(currentDate);
-
-            // Clear calendar
-            calendar.innerHTML = '';
-
-            // Add day headers
-            const dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-            dayNames.forEach(day => {
-                const dayHeader = document.createElement('div');
-                dayHeader.className = 'day-header';
-                dayHeader.textContent = day;
-                calendar.appendChild(dayHeader);
-            });
-
-            // Get first day of month and number of days
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const daysInMonth = lastDay.getDate();
-            const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Convert to Monday = 0
-
-            // Add empty cells for previous month
-            for (let i = 0; i < startingDayOfWeek; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = 'day-cell other-month';
-                const prevMonthDay = new Date(year, month, -startingDayOfWeek + i + 1);
-                emptyCell.innerHTML = `<div class="day-number">${prevMonthDay.getDate()}</div>`;
-                calendar.appendChild(emptyCell);
-            }
-
-            // Add days of current month
-            const today = new Date();
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dayCell = document.createElement('div');
-                const cellDate = new Date(year, month, day);
-                const dateStr = formatDate(cellDate);
-                
-                dayCell.className = 'day-cell';
-                if (cellDate.toDateString() === today.toDateString()) {
-                    dayCell.classList.add('today');
-                }
-                
-                if (reminders[dateStr] && reminders[dateStr].length > 0) {
-                    dayCell.classList.add('has-reminder');
-                }
-
-                dayCell.innerHTML = `
-                    <div class="day-number">${day}</div>
-                    <div class="reminders" id="reminders-${dateStr}"></div>
-                `;
-
-                dayCell.addEventListener('click', () => openReminderModal(cellDate));
-                calendar.appendChild(dayCell);
-
-                // Add reminders to cell
-                if (reminders[dateStr]) {
-                    const reminderDiv = document.getElementById(`reminders-${dateStr}`);
-                    reminders[dateStr].forEach((reminder, index) => {
-                        const reminderItem = document.createElement('div');
-                        reminderItem.className = `reminder-item ${reminder.type === 'pill' ? 'pill-reminder' : ''}`;
-                        reminderItem.innerHTML = `
-                            <span>${getEmojiForType(reminder.type)} ${reminder.text}</span>
-                            <button class="delete-btn" onclick="deleteReminder('${dateStr}', ${index}); event.stopPropagation();">×</button>
-                        `;
-                        reminderDiv.appendChild(reminderItem);
-                    });
-                }
-            }
-
-            updateStats();
-        }
-
-        function getEmojiForType(type) {
-            const emojis = {
-                'pill': '💊',
-                'general': '📋',
-                'appointment': '🏥',
-                'medicine': '💉'
-            };
-            return emojis[type] || '📋';
-        }
-
-        function updateStats() {
-            const statsDiv = document.getElementById('pillStats');
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            let pillDays = 0;
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateStr = formatDate(new Date(year, month, day));
-                if (reminders[dateStr]) {
-                    const hasPill = reminders[dateStr].some(r => r.type === 'pill');
-                    if (hasPill) pillDays++;
-                }
-            }
-            
-            statsDiv.textContent = `💊 Pillole prese: ${pillDays} su ${daysInMonth} giorni (${Math.round((pillDays/daysInMonth)*100)}%)`;
-        }
-
-        function openReminderModal(date) {
-            selectedDate = date;
-            document.getElementById('reminderModal').style.display = 'block';
-            document.getElementById('reminderText').focus();
-        }
-
-        function closeModal() {
-            document.getElementById('reminderModal').style.display = 'none';
-            document.getElementById('reminderText').value = '';
-            document.getElementById('reminderType').value = 'pill';
-        }
-
-        function saveReminder() {
-            const text = document.getElementById('reminderText').value.trim();
-            const type = document.getElementById('reminderType').value;
-
-            if (!text) {
-                alert('Inserisci un testo per il promemoria!');
-                return;
-            }
-
-            const dateStr = formatDate(selectedDate);
-            if (!reminders[dateStr]) {
-                reminders[dateStr] = [];
-            }
-
-            reminders[dateStr].push({
-                text: text,
-                type: type,
-                created: new Date().toISOString()
-            });
-
-            if (saveReminders()) {
-                generateCalendar();
-                closeModal();
-            } else {
-                alert('Errore nel salvataggio del promemoria. Riprova.');
-            }
-        }
-
-        function quickAddPill() {
-            document.getElementById('reminderText').value = 'Pillola presa ✓';
-            document.getElementById('reminderType').value = 'pill';
-        }
-
-        function quickAddMissed() {
-            document.getElementById('reminderText').value = 'Pillola dimenticata ❌';
-            document.getElementById('reminderType').value = 'pill';
-        }
-
-        function deleteReminder(dateStr, index) {
-            if (reminders[dateStr]) {
-                reminders[dateStr].splice(index, 1);
-                if (reminders[dateStr].length === 0) {
-                    delete reminders[dateStr];
-                }
-                if (saveReminders()) {
-                    generateCalendar();
-                } else {
-                    alert('Errore nella cancellazione del promemoria. Riprova.');
-                }
-            }
-        }
-
-        function previousMonth() {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            generateCalendar();
-        }
-
-        function nextMonth() {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            generateCalendar();
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('reminderModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeModal();
-            }
-        });
-
-        // NFC Integration Functions
-        function addPillFromNFC() {
-            const today = new Date();
-            const dateStr = formatDate(today);
-            
-            if (!reminders[dateStr]) {
-                reminders[dateStr] = [];
-            }
-
-            const existingPill = reminders[dateStr].find(r => r.type === 'pill' && r.text.includes('Pillola presa'));
-            
-            if (existingPill) {
-                showNFCNotification('💊 Pillola già registrata per oggi!', 'warning');
-                return;
-            }
-
-            reminders[dateStr].push({
-                text: 'Pillola presa ✓',
-                type: 'pill',
-                created: new Date().toISOString(),
-                addedVia: 'NFC'
-            });
-
-            if (saveReminders()) {
-                generateCalendar();
-                showNFCNotification('💊 Pillola registrata e salvata con successo!', 'success');
-                scrollToToday();
-            } else {
-                showNFCNotification('⚠️ Errore nel salvataggio della pillola!', 'error');
-            }
-        }
-
-        function showNFCNotification(message, type) {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 25px;
-                background: ${type === 'success' ? 'linear-gradient(45deg, #4caf50, #45a049)' : 
-                            type === 'error' ? 'linear-gradient(45deg, #f44336, #d32f2f)' :
-                            'linear-gradient(45deg, #ff9800, #f57c00)'};
-                color: white;
-                border-radius: 10px;
-                font-size: 16px;
-                font-weight: 600;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                z-index: 10000;
-                animation: slideInRight 0.5s ease;
-                backdrop-filter: blur(10px);
-                max-width: 300px;
-            `;
-            notification.textContent = message;
-            
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOutRight {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.style.animation = 'slideOutRight 0.5s ease';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 500);
-            }, 4000);
-        }
-
-        function scrollToToday() {
-            const today = new Date();
-            const todayStr = formatDate(today);
-            const todayCell = document.querySelector(`[id*="${todayStr}"]`);
-            if (todayCell) {
-                todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
-        function checkForNFCActivation() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const nfcAction = urlParams.get('nfc');
-            const action = urlParams.get('action');
-            
-            if (nfcAction === 'pill' || action === 'pill') {
-                setTimeout(() => {
-                    addPillFromNFC();
-                    if (window.history && window.history.replaceState) {
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }
-                }, 500);
-            }
-        }
-
-        function addNFCIndicator() {
-            const header = document.querySelector('.header h1');
-            if (header) {
-                header.innerHTML = '📅 Calendario Promemoria <span style="font-size: 0.6em; background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px; margin-left: 10px;">📱 NFC Ready</span>';
-            }
-            
-            updateNFCUrl();
-        }
-
-        function updateNFCUrl() {
-            const nfcUrlDiv = document.getElementById('nfcUrl');
-            const currentUrl = window.location.origin + window.location.pathname;
-            
-            if (currentUrl.includes('github.io') || currentUrl.includes('localhost') || currentUrl.includes('http')) {
-                nfcUrlDiv.textContent = currentUrl + '?nfc=pill';
-            } else {
-                nfcUrlDiv.innerHTML = `
-                    <strong>Per GitHub Pages:</strong><br>
-                    https://[tuo-username].github.io/[nome-repository]/?nfc=pill<br><br>
-                    <small>Sostituisci [tuo-username] e [nome-repository] con i tuoi dati</small>
-                `;
-            }
-        }
-
         // Initialize calendar when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            loadReminders();
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadReminders();
             generateCalendar();
             checkForNFCActivation();
             addNFCIndicator();
+                    loadReminders();
+                }
+            });
         });
     </script>
 </body>
