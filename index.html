@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario Promemoria</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .current-month {
+            font-size: 1.5em;
+            font-weight: 600;
+            min-width: 200px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e0e0e0;
+            margin: 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .day-header {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 20px 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .day-cell {
+            background: white;
+            min-height: 120px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .day-cell:hover {
+            background: #f0f8ff;
+            transform: scale(1.02);
+            z-index: 10;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .day-number {
+            font-weight: 600;
+            font-size: 1.2em;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .other-month {
+            color: #ccc;
+            background: #f9f9f9;
+        }
+
+        .today {
+            background: linear-gradient(45deg, #ff9a9e, #fecfef);
+            color: #333;
+            font-weight: bold;
+        }
+
+        .has-reminder {
+            background: linear-gradient(45deg, #a8edea, #fed6e3);
+            border-left: 5px solid #ff6b6b;
+        }
+
+        .reminders {
+            flex-grow: 1;
+            font-size: 0.85em;
+        }
+
+        .reminder-item {
+            background: rgba(255, 107, 107, 0.1);
+            padding: 4px 8px;
+            margin: 2px 0;
+            border-radius: 15px;
+            border-left: 3px solid #ff6b6b;
+            font-size: 0.8em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .reminder-item:hover {
+            background: rgba(255, 107, 107, 0.2);
+            transform: translateX(5px);
+        }
+
+        .pill-reminder {
+            background: rgba(76, 175, 80, 0.1);
+            border-left-color: #4caf50;
+        }
+
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .delete-btn:hover {
+            background: #ff3742;
+            transform: scale(1.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.8em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f1f2f6;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #ddd;
+            transform: translateY(-2px);
+        }
+
+        .quick-pills {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .quick-pill {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .quick-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .stats {
+            background: linear-gradient(45deg, #ffecd2, #fcb69f);
+            margin: 20px;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .nfc-info {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            margin: 20px;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+        }
+
+        .nfc-url {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            word-break: break-all;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .calendar-grid {
+                margin: 10px;
+            }
+            
+            .day-cell {
+                min-height: 80px;
+                padding: 5px;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .current-month {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Calendario Promemoria</h1>
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="previousMonth()">← Mese Precedente</button>
+                <div class="current-month" id="currentMonth"></div>
+                <button class="nav-btn" onclick="nextMonth()">Mese Successivo →</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <h3>Statistiche del Mese</h3>
+            <p id="pillStats">Pillole prese: 0 su 0 giorni</p>
+        </div>
+
+        <div class="nfc-info">
+            <h3>📱 Configurazione Tag NFC</h3>
+            <p>Scrivi questo URL nel tuo tag NFC:</p>
+            <div class="nfc-url" id="nfcUrl">
+                Carica il sito su GitHub Pages per ottenere l'URL
+            </div>
+            <p><small>💡 Toccando il tag si registrerà automaticamente la pillola per oggi!</small></p>
+        </div>
+
+        <div class="calendar-grid" id="calendar">
+            <!-- Calendar will be generated here -->
+        </div>
+    </div>
+
+    <!-- Modal for adding reminders -->
+    <div id="reminderModal" class="modal">
+        <div class="modal-content">
+            <h2>📝 Aggiungi Promemoria</h2>
+            <div class="form-group">
+                <label for="reminderText">Testo del promemoria:</label>
+                <input type="text" id="reminderText" placeholder="Es: Pillola anticoncezionale">
+            </div>
+            <div class="form-group">
+                <label for="reminderType">Tipo di promemoria:</label>
+                <select id="reminderType">
+                    <option value="pill">💊 Pillola</option>
+                    <option value="general">📋 Generale</option>
+                    <option value="appointment">🏥 Appuntamento</option>
+                    <option value="medicine">💉 Medicina</option>
+                </select>
+            </div>
+            <div class="quick-pills">
+                <button class="quick-pill" onclick="quickAddPill()">💊 Pillola Presa</button>
+                <button class="quick-pill" onclick="quickAddMissed()">❌ Pillola Dimenticata</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="saveReminder()">Salva</button>
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDate = new Date();
+        let selectedDate = null;
+        let reminders = {};
+
+        // Load reminders from memory
+        const STORAGE_KEY = 'calendar_reminders';
+
+        function loadReminders() {
+            // Since we can't use localStorage, reminders will only persist during the session
+            reminders = window.calendarReminders || {};
+        }
+
+        function saveReminders() {
+            window.calendarReminders = reminders;
+        }
+
+        function formatDate(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function generateCalendar() {
+            const calendar = document.getElementById('calendar');
+            const monthYear = document.getElementById('currentMonth');
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            monthYear.textContent = new Intl.DateTimeFormat('it-IT', { 
+                month: 'long', 
+                year: 'numeric' 
+            }).format(currentDate);
+
+            // Clear calendar
+            calendar.innerHTML = '';
+
+            // Add day headers
+            const dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+            dayNames.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                dayHeader.textContent = day;
+                calendar.appendChild(dayHeader);
+            });
+
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Convert to Monday = 0
+
+            // Add empty cells for previous month
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'day-cell other-month';
+                const prevMonthDay = new Date(year, month, -startingDayOfWeek + i + 1);
+                emptyCell.innerHTML = `<div class="day-number">${prevMonthDay.getDate()}</div>`;
+                calendar.appendChild(emptyCell);
+            }
+
+            // Add days of current month
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayCell = document.createElement('div');
+                const cellDate = new Date(year, month, day);
+                const dateStr = formatDate(cellDate);
+                
+                dayCell.className = 'day-cell';
+                if (cellDate.toDateString() === today.toDateString()) {
+                    dayCell.classList.add('today');
+                }
+                
+                if (reminders[dateStr] && reminders[dateStr].length > 0) {
+                    dayCell.classList.add('has-reminder');
+                }
+
+                dayCell.innerHTML = `
+                    <div class="day-number">${day}</div>
+                    <div class="reminders" id="reminders-${dateStr}"></div>
+                `;
+
+                dayCell.addEventListener('click', () => openReminderModal(cellDate));
+                calendar.appendChild(dayCell);
+
+                // Add reminders to cell
+                if (reminders[dateStr]) {
+                    const reminderDiv = document.getElementById(`reminders-${dateStr}`);
+                    reminders[dateStr].forEach((reminder, index) => {
+                        const reminderItem = document.createElement('div');
+                        reminderItem.className = `reminder-item ${reminder.type === 'pill' ? 'pill-reminder' : ''}`;
+                        reminderItem.innerHTML = `
+                            <span>${getEmojiForType(reminder.type)} ${reminder.text}</span>
+                            <button class="delete-btn" onclick="deleteReminder('${dateStr}', ${index}); event.stopPropagation();">×</button>
+                        `;
+                        reminderDiv.appendChild(reminderItem);
+                    });
+                }
+            }
+
+            updateStats();
+        }
+
+        function getEmojiForType(type) {
+            const emojis = {
+                'pill': '💊',
+                'general': '📋',
+                'appointment': '🏥',
+                'medicine': '💉'
+            };
+            return emojis[type] || '📋';
+        }
+
+        function updateStats() {
+            const statsDiv = document.getElementById('pillStats');
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let pillDays = 0;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = formatDate(new Date(year, month, day));
+                if (reminders[dateStr]) {
+                    const hasPill = reminders[dateStr].some(r => r.type === 'pill');
+                    if (hasPill) pillDays++;
+                }
+            }
+            
+            statsDiv.textContent = `💊 Pillole prese: ${pillDays} su ${daysInMonth} giorni`;
+        }
+
+        function openReminderModal(date) {
+            selectedDate = date;
+            document.getElementById('reminderModal').style.display = 'block';
+            document.getElementById('reminderText').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('reminderModal').style.display = 'none';
+            document.getElementById('reminderText').value = '';
+            document.getElementById('reminderType').value = 'pill';
+        }
+
+        function saveReminder() {
+            const text = document.getElementById('reminderText').value.trim();
+            const type = document.getElementById('reminderType').value;
+
+            if (!text) {
+                alert('Inserisci un testo per il promemoria!');
+                return;
+            }
+
+            const dateStr = formatDate(selectedDate);
+            if (!reminders[dateStr]) {
+                reminders[dateStr] = [];
+            }
+
+            reminders[dateStr].push({
+                text: text,
+                type: type,
+                created: new Date()
+            });
+
+            saveReminders();
+            generateCalendar();
+            closeModal();
+        }
+
+        function quickAddPill() {
+            document.getElementById('reminderText').value = 'Pillola presa ✓';
+            document.getElementById('reminderType').value = 'pill';
+        }
+
+        function quickAddMissed() {
+            document.getElementById('reminderText').value = 'Pillola dimenticata ❌';
+            document.getElementById('reminderType').value = 'pill';
+        }
+
+        function deleteReminder(dateStr, index) {
+            if (reminders[dateStr]) {
+                reminders[dateStr].splice(index, 1);
+                if (reminders[dateStr].length === 0) {
+                    delete reminders[dateStr];
+                }
+                saveReminders();
+                generateCalendar();
+            }
+        }
+
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            generateCalendar();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            generateCalendar();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('reminderModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // NFC Integration Functions
+        function addPillFromNFC() {
+            const today = new Date();
+            const dateStr = formatDate(today);
+            
+            if (!reminders[dateStr]) {
+                reminders[dateStr] = [];
+            }
+
+            // Check if pill already taken today
+            const existingPill = reminders[dateStr].find(r => r.type === 'pill' && r.text.includes('Pillola presa'));
+            
+            if (existingPill) {
+                showNFCNotification('💊 Pillola già registrata per oggi!', 'warning');
+                return;
+            }
+
+            // Add pill reminder
+            reminders[dateStr].push({
+                text: 'Pillola presa ✓',
+                type: 'pill',
+                created: new Date(),
+                addedVia: 'NFC'
+            });
+
+            saveReminders();
+            generateCalendar();
+            showNFCNotification('💊 Pillola registrata con successo!', 'success');
+            
+            // Scroll to today if not visible
+            scrollToToday();
+        }
+
+        function showNFCNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'success' ? 'linear-gradient(45deg, #4caf50, #45a049)' : 'linear-gradient(45deg, #ff9800, #f57c00)'};
+                color: white;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: 600;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                z-index: 10000;
+                animation: slideInRight 0.5s ease;
+                backdrop-filter: blur(10px);
+            `;
+            notification.textContent = message;
+            
+            // Add animation styles
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.5s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
+            }, 3000);
+        }
+
+        function scrollToToday() {
+            const today = new Date();
+            const todayStr = formatDate(today);
+            const todayCell = document.querySelector(`[id*="${todayStr}"]`);
+            if (todayCell) {
+                todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Check for NFC activation on page load
+        function checkForNFCActivation() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const nfcAction = urlParams.get('nfc');
+            const action = urlParams.get('action');
+            
+            if (nfcAction === 'pill' || action === 'pill') {
+                // Small delay to ensure calendar is loaded
+                setTimeout(() => {
+                    addPillFromNFC();
+                    // Clean URL without reloading
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                }, 500);
+            }
+        }
+
+        // Check for NFC activation on page load
+        function checkForNFCActivation() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const nfcAction = urlParams.get('nfc');
+            const action = urlParams.get('action');
+            
+            if (nfcAction === 'pill' || action === 'pill') {
+                // Small delay to ensure calendar is loaded
+                setTimeout(() => {
+                    addPillFromNFC();
+                    // Clean URL without reloading
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                }, 500);
+            }
+        }
+
+        // Add visual indicator for NFC capability
+        function addNFCIndicator() {
+            const header = document.querySelector('.header h1');
+            if (header) {
+                header.innerHTML = '📅 Calendario Promemoria <span style="font-size: 0.6em; background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 15px; margin-left: 10px;">📱 NFC Ready</span>';
+            }
+            
+            // Update NFC URL display
+            updateNFCUrl();
+        }
+
+        function updateNFCUrl() {
+            const nfcUrlDiv = document.getElementById('nfcUrl');
+            const currentUrl = window.location.origin + window.location.pathname;
+            
+            if (currentUrl.includes('github.io') || currentUrl.includes('localhost') || currentUrl.includes('http')) {
+                nfcUrlDiv.textContent = currentUrl + '?nfc=pill';
+            } else {
+                nfcUrlDiv.innerHTML = `
+                    <strong>Per GitHub Pages:</strong><br>
+                    https://[tuo-username].github.io/[nome-repository]/?nfc=pill<br><br>
+                    <small>Sostituisci [tuo-username] e [nome-repository] con i tuoi dati</small>
+                `;
+            }
+        }
+
+        // Initialize calendar
+        loadReminders();
+        generateCalendar();
+        checkForNFCActivation();
+        addNFCIndicator();
+    </script>
+</body>
+</html>
