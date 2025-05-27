@@ -446,18 +446,29 @@
         let selectedDate = null;
         let reminders = {};
 
-        // Key for persistent storage (usando variabili JavaScript invece di localStorage)
+        // Key for persistent storage
         const STORAGE_KEY = 'calendar_reminders';
 
         function loadReminders() {
-            // Per ora usa memoria JavaScript (senza localStorage)
-            reminders = reminders || {};
-            updateStorageStatus('💾 Calendario pronto per l\'uso', 'success');
+            try {
+                const savedData = localStorage.getItem(STORAGE_KEY);
+                if (savedData) {
+                    reminders = JSON.parse(savedData);
+                    updateStorageStatus('💾 Dati caricati con successo!', 'success');
+                } else {
+                    reminders = {};
+                    updateStorageStatus('💾 Nuovo calendario inizializzato', 'info');
+                }
+            } catch (error) {
+                console.error('Errore nel caricamento dei dati:', error);
+                reminders = {};
+                updateStorageStatus('⚠️ Errore nel caricamento - inizializzato nuovo calendario', 'warning');
+            }
         }
 
         function saveReminders() {
             try {
-                // Simula salvataggio (in memoria per ora)
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
                 updateStorageStatus('💾 Dati salvati con successo!', 'success');
                 return true;
             } catch (error) {
