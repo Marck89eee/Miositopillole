@@ -348,6 +348,16 @@
             font-size: 12px;
         }
 
+        .storage-status {
+            background: linear-gradient(45deg, #4caf50, #45a049);
+            color: white;
+            margin: 20px;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 12px;
+        }
+
         @media (max-width: 768px) {
             .calendar-grid {
                 margin: 10px;
@@ -378,6 +388,10 @@
                 <div class="current-month" id="currentMonth"></div>
                 <button class="nav-btn" onclick="nextMonth()">Mese Successivo →</button>
             </div>
+        </div>
+
+        <div class="storage-status" id="storageStatus">
+            💾 Dati salvati nel browser - I tuoi promemoria sono al sicuro!
         </div>
 
         <div class="stats" id="stats">
@@ -432,16 +446,61 @@
         let selectedDate = null;
         let reminders = {};
 
-        // Load reminders from memory
+        // LocalStorage key for persistent storage
         const STORAGE_KEY = 'calendar_reminders';
 
         function loadReminders() {
-            // Since we can't use localStorage, reminders will only persist during the session
-            reminders = window.calendarReminders || {};
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    reminders = JSON.parse(saved);
+                    updateStorageStatus('💾 Dati caricati dal browser', 'success');
+                } else {
+                    reminders = {};
+                    updateStorageStatus('💾 Nessun dato precedente trovato', 'info');
+                }
+            } catch (error) {
+                console.error('Errore nel caricamento dei dati:', error);
+                reminders = {};
+                updateStorageStatus('⚠️ Errore nel caricamento dei dati', 'error');
+            }
         }
 
         function saveReminders() {
-            window.calendarReminders = reminders;
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+                updateStorageStatus('💾 Dati salvati con successo!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Errore nel salvataggio dei dati:', error);
+                updateStorageStatus('⚠️ Errore nel salvataggio dei dati', 'error');
+                return false;
+            }
+        }
+
+        function updateStorageStatus(message, type) {
+            const statusDiv = document.getElementById('storageStatus');
+            if (statusDiv) {
+                statusDiv.textContent = message;
+                
+                // Update color based on type
+                const colors = {
+                    success: 'linear-gradient(45deg, #4caf50, #45a049)',
+                    error: 'linear-gradient(45deg, #f44336, #d32f2f)',
+                    info: 'linear-gradient(45deg, #2196f3, #1976d2)',
+                    warning: 'linear-gradient(45deg, #ff9800, #f57c00)'
+                };
+                
+                statusDiv.style.background = colors[type] || colors.info;
+                
+                // Auto hide after 3 seconds for non-success messages
+                if (type !== 'success') {
+                    setTimeout(() => {
+                        statusDiv.textContent = '💾 Dati salvati nel browser - I tuoi promemoria sono al sicuro!';
+                        statusDiv.style.background = colors.success;
+                    }, 3000);
+                }
+            }
         }
 
         function formatDate(date) {
@@ -554,7 +613,7 @@
                 }
             }
             
-            statsDiv.textContent = `💊 Pillole prese: ${pillDays} su ${daysInMonth} giorni`;
+            statsDiv.textContent = `💊 Pillole prese: ${pillDays} su ${daysInMonth} giorni (${Math.round((pillDays/daysInMonth)*100)}%)`;
         }
 
         function openReminderModal(date) {
@@ -586,12 +645,15 @@
             reminders[dateStr].push({
                 text: text,
                 type: type,
-                created: new Date()
+                created: new Date().toISOString()
             });
 
-            saveReminders();
-            generateCalendar();
-            closeModal();
+            if (saveReminders()) {
+                generateCalendar();
+                closeModal();
+            } else {
+                alert('Errore nel salvataggio del promemoria. Riprova.');
+            }
         }
 
         function quickAddPill() {
@@ -610,8 +672,11 @@
                 if (reminders[dateStr].length === 0) {
                     delete reminders[dateStr];
                 }
-                saveReminders();
-                generateCalendar();
+                if (saveReminders()) {
+                    generateCalendar();
+                } else {
+                    alert('Errore nella cancellazione del promemoria. Riprova.');
+                }
             }
         }
 
@@ -661,16 +726,17 @@
             reminders[dateStr].push({
                 text: 'Pillola presa ✓',
                 type: 'pill',
-                created: new Date(),
+                created: new Date().toISOString(),
                 addedVia: 'NFC'
             });
 
-            saveReminders();
-            generateCalendar();
-            showNFCNotification('💊 Pillola registrata con successo!', 'success');
-            
-            // Scroll to today if not visible
-            scrollToToday();
+            if (saveReminders()) {
+                generateCalendar();
+                showNFCNotification('💊 Pillola registrata e salvata con successo!', 'success');
+                scrollToToday();
+            } else {
+                showNFCNotification('⚠️ Errore nel salvataggio della pillola!', 'error');
+            }
         }
 
         function showNFCNotification(message, type) {
@@ -681,7 +747,9 @@
                 top: 20px;
                 right: 20px;
                 padding: 15px 25px;
-                background: ${type === 'success' ? 'linear-gradient(45deg, #4caf50, #45a049)' : 'linear-gradient(45deg, #ff9800, #f57c00)'};
+                background: ${type === 'success' ? 'linear-gradient(45deg, #4caf50, #45a049)' : 
+                            type === 'error' ? 'linear-gradient(45deg, #f44336, #d32f2f)' :
+                            'linear-gradient(45deg, #ff9800, #f57c00)'};
                 color: white;
                 border-radius: 10px;
                 font-size: 16px;
@@ -690,6 +758,7 @@
                 z-index: 10000;
                 animation: slideInRight 0.5s ease;
                 backdrop-filter: blur(10px);
+                max-width: 300px;
             `;
             notification.textContent = message;
             
@@ -709,7 +778,7 @@
             
             document.body.appendChild(notification);
             
-            // Auto remove after 3 seconds
+            // Auto remove after 4 seconds
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.5s ease';
                 setTimeout(() => {
@@ -717,7 +786,7 @@
                         notification.parentNode.removeChild(notification);
                     }
                 }, 500);
-            }, 3000);
+            }, 4000);
         }
 
         function scrollToToday() {
@@ -726,24 +795,6 @@
             const todayCell = document.querySelector(`[id*="${todayStr}"]`);
             if (todayCell) {
                 todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
-        // Check for NFC activation on page load
-        function checkForNFCActivation() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const nfcAction = urlParams.get('nfc');
-            const action = urlParams.get('action');
-            
-            if (nfcAction === 'pill' || action === 'pill') {
-                // Small delay to ensure calendar is loaded
-                setTimeout(() => {
-                    addPillFromNFC();
-                    // Clean URL without reloading
-                    if (window.history && window.history.replaceState) {
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }
-                }, 500);
             }
         }
 
@@ -791,11 +842,8 @@
             }
         }
 
-        // Initialize calendar
-        loadReminders();
-        generateCalendar();
-        checkForNFCActivation();
-        addNFCIndicator();
-    </script>
-</body>
-</html>
+        // Test localStorage functionality
+        function testLocalStorage() {
+            try {
+                const testKey = 'test_storage';
+                localStorage.setItem(testKey,
