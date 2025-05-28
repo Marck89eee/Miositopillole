@@ -378,81 +378,52 @@
             }
         }
     </style>
+
 <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDzLeMnDCQUfLKKg-0_WEZ6Fw4kRQVVLLY",
-            authDomain: "calendario-pillole.firebaseapp.com",
-            projectId: "calendario-pillole",
-            storageBucket: "calendario-pillole.firebasestorage.app",
-            messagingSenderId: "613135833603",
-            appId: "1:613135833603:web:07c99afb435739ca02cc36"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyDzLeMnDCQUfLKKg-0_WEZ6Fw4kRQVVLLY",
+        authDomain: "calendario-pillole.firebaseapp.com",
+        projectId: "calendario-pillole",
+        storageBucket: "calendario-pillole.appspot.com",
+        messagingSenderId: "613135833603",
+        appId: "1:613135833603:web:07c99afb435739ca02cc36"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const FIRESTORE_DOC_ID = "shared_reminders";
+    let reminders = {};
 
-        let currentDate = new Date();
-        let selectedDate = null;
-        let reminders = {};
-        const FIRESTORE_DOC_ID = "shared_reminders";
-
-        async function loadReminders() {
-            try {
-                const docRef = doc(db, "reminders", FIRESTORE_DOC_ID);
-                const docSnap = await getDoc(docRef);
-                reminders = docSnap.exists() ? docSnap.data() : {};
-                updateStorageStatus("☁️ Dati caricati da Firebase", "success");
-                generateCalendar();
-            } catch (e) {
-                console.error("Errore nel caricamento da Firebase:", e);
-                updateStorageStatus("⚠️ Errore nel caricamento dal cloud", "error");
-            }
+    async function loadReminders() {
+        try {
+            const docRef = doc(db, "reminders", FIRESTORE_DOC_ID);
+            const docSnap = await getDoc(docRef);
+            reminders = docSnap.exists() ? docSnap.data() : {};
+            updateStorageStatus("☁️ Dati caricati da Firebase", "success");
+            generateCalendar();
+        } catch (e) {
+            console.error("Errore nel caricamento dei dati:", e);
+            updateStorageStatus("⚠️ Errore nel caricamento dei dati", "error");
         }
+    }
 
-        async function saveReminders() {
-            try {
-                const docRef = doc(db, "reminders", FIRESTORE_DOC_ID);
-                await setDoc(docRef, reminders);
-                updateStorageStatus("☁️ Dati salvati su Firebase", "success");
-                generateCalendar();
-            } catch (e) {
-                console.error("Errore nel salvataggio su Firebase:", e);
-                updateStorageStatus("⚠️ Errore nel salvataggio sul cloud", "error");
-            }
+    async function saveReminders() {
+        try {
+            const docRef = doc(db, "reminders", FIRESTORE_DOC_ID);
+            await setDoc(docRef, reminders);
+            updateStorageStatus("☁️ Dati salvati su Firebase", "success");
+            return true;
+        } catch (e) {
+            console.error("Errore nel salvataggio dei dati:", e);
+            updateStorageStatus("⚠️ Errore nel salvataggio dei dati", "error");
+            return false;
         }
+    }
+</script>
 
-        function updateStorageStatus(message, type) {
-            const statusDiv = document.getElementById("storageStatus");
-            if (statusDiv) {
-                statusDiv.textContent = message;
-                statusDiv.style.background = type === 'success'
-                    ? 'linear-gradient(45deg, #4caf50, #45a049)'
-                    : 'linear-gradient(45deg, #f44336, #d32f2f)';
-            }
-        }
-
-        function formatDate(date) {
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        }
-
-        function generateCalendar() {
-            const cal = document.getElementById("calendar");
-            cal.innerHTML = "<p>📅 Qui verrà generato il calendario con i dati sincronizzati.</p>";
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            loadReminders();
-        });
-
-        window.saveReminderToFirebase = async function (dateStr, text, type) {
-            if (!reminders[dateStr]) reminders[dateStr] = [];
-            reminders[dateStr].push({ text, type, created: new Date().toISOString() });
-            await await saveReminders();
-        };
-    </script>
 </head>
 <body>
     <div class="container">
@@ -524,10 +495,7 @@
         // Key for persistent storage (usando variabili JavaScript invece di localStorage)
         const STORAGE_KEY = 'calendar_reminders';
 
-        function loadReminders() {
-    try {
-        const savedData = 
-        reminders = savedData ? JSON.parse(savedData) : {};
+        ;
         updateStorageStatus('💾 Dati caricati correttamente!', 'success');
     } catch (error) {
         console.error('Errore nel caricamento dei dati:', error);
@@ -536,12 +504,7 @@
     }
 }
 
-        function saveReminders() {
-    try {
-        
-        updateStorageStatus('💾 Dati salvati con successo!', 'success');
-        return true;
-    } catch (error) {
+        catch (error) {
         console.error('Errore nel salvataggio dei dati:', error);
         updateStorageStatus('⚠️ Errore nel salvataggio dei dati', 'error');
         return false;
