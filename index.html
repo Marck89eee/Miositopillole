@@ -395,7 +395,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const FIRESTORE_DOC_ID = "shared_reminders";
-    let reminders = {};
+    
 
     async function loadReminders() {
         try {
@@ -403,7 +403,7 @@
             const docSnap = await getDoc(docRef);
             reminders = docSnap.exists() ? docSnap.data() : {};
             updateStorageStatus("☁️ Dati caricati da Firebase", "success");
-            generateCalendar();
+            
         } catch (e) {
             console.error("Errore nel caricamento dei dati:", e);
             updateStorageStatus("⚠️ Errore nel caricamento dei dati", "error");
@@ -681,7 +681,7 @@
             });
 
             if (saveReminders()) {
-                generateCalendar();
+                
                 closeModal();
             } else {
                 alert('Errore nel salvataggio del promemoria. Riprova.');
@@ -705,7 +705,7 @@
                     delete reminders[dateStr];
                 }
                 if (saveReminders()) {
-                    generateCalendar();
+                    
                 } else {
                     alert('Errore nella cancellazione del promemoria. Riprova.');
                 }
@@ -714,12 +714,12 @@
 
         function previousMonth() {
             currentDate.setMonth(currentDate.getMonth() - 1);
-            generateCalendar();
+            
         }
 
         function nextMonth() {
             currentDate.setMonth(currentDate.getMonth() + 1);
-            generateCalendar();
+            
         }
 
         // Close modal when clicking outside
@@ -761,7 +761,7 @@
             });
 
             if (saveReminders()) {
-                generateCalendar();
+                
                 showNFCNotification('💊 Pillola registrata e salvata con successo!', 'success');
                 scrollToToday();
             } else {
@@ -867,7 +867,7 @@
         // Initialize calendar when page loads
         document.addEventListener('DOMContentLoaded', function() {
             loadReminders();
-            generateCalendar();
+            
             checkForNFCActivation();
             addNFCIndicator();
         });
